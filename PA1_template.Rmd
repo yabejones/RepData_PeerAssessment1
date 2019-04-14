@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = FALSE)
 ```
 
 
-```{r libraries, echo=FALSE, render='hide'}
+```{r libraries, echo=FALSE, results='hide'}
 library(tidyverse)
 library(data.table)
 ```
