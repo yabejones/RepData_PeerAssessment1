@@ -14,17 +14,21 @@ knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(data.table)
 ```
-# First Looks
+
+## Loading, preprocessing, and first looks at the data
+
 Let's take some basic looks at the data. First, in summary form:
-```{r import_data, echo = FALSE}
+```{r import_data, echo = TRUE}
 df <- read.csv('activity.csv',na.strings = c('','NA','NULL'))
 df$date <- as.Date(df$date)## format as date
 
 summary(df)
 ```
 
-Next, a peek at the distribution of the data based on total steps taken per day:
-```{r hist, echo=FALSE}
+## Mean total number of steps per day
+
+We now take a peek at the distribution of the data based on total steps taken per day:
+```{r hist, echo=TRUE}
 total_daily_steps <- df %>%
       group_by(date) %>%
       summarise(Stepcount = sum(steps, na.rm = TRUE))
@@ -46,6 +50,9 @@ steps, or between 10,000 and 11,000 steps.
 - Mean daily steps: `r meanDailySteps`
 - Median daily steps: `r medianDailySteps`
 
+
+## Average daily activity pattern
+
 Now let's take a look at patterns of activity throughout the 24-hour day:
 ```{r timeseries_plot, echo = FALSE}
 ts_data <- df %>%
@@ -66,7 +73,7 @@ max_step_interval <- ts_data[which.max(ts_data$Stepcount),]
 The 5-minute interval with the maximum average stepcount is `r max_step_interval$interval` to `r max_step_interval$interval +5`, with an average of `r max_step_interval$Stepcount` steps.
 
 
-# Impute missing values
+## Impute missing values
 
 ```{r missing_values, echo=FALSE}
 missing <- nrow(df[is.na(df$steps),])
@@ -95,23 +102,63 @@ summary(total_daily_steps_rev)
 hist(total_daily_steps_rev$Rev_Daily_Stepcount,main = 'Rev. Total Daily Stepcounts w Imputed Values',
      xlab = 'Daily Total Stepcount',
      ylab = 'Frequency',
-     col = 'orchid',
+     col = 'plum3',
      breaks = 22)
 ```
 
 The median total daily steps remains 10,395 while mean daily steps has increased from 9,354 to 10,581 steps with the use of imputed values. This makes sense because the median value is still the middle value of the 17,568 rows, however the mean would change due to the replacement of individual NAs with imputed values. The use of the imputed values resulted in an increase in the mean daily stepcount.
 
-As an illustration of the effect of the use of imputed values to replace only the NAs and not the zero values (I assumed that zero meant that there was truly no activity), we can take a look at a date like 10-1-2012. 10-1-2012 had all NAs, thus its revised step count becamse 9,354 whereas 10-2-2012 had mostly zero steps, thus its daily total is 126. 
+As an illustration of the effect of the use of imputed values to replace only the NAs and not the zero values (I assumed that zero meant that there was truly no activity), we can take a look at a date like 10-1-2012. 10-1-2012 had all NAs, thus its revised step count becamse 9,354 whereas 10-2-2012 had mostly zero steps, thus its daily total remains 126:
 
-# Impact of weekday vs weekend in exercise activity
+#### Without imputed values:
+```{r echo=TRUE}
+head(total_daily_steps,2)
+```
 
-Now we look at the difference in stepcount based on weekend vs during the week. 
-```{r weekdays echo = FALSE}
-df_backfill = df_backfill %>%
-      mutate(Weekday = weekdays(date)) %>%
-      mutate(DayType = ifelse(Weekday %in% c('Monday','Tuesday','Wednesday','Thursday','Friday'),'Weekday','Weekend'))
+#### With imputed values:
+```{r echo=TRUE}
+head(total_daily_steps_rev,2)
 ```
 
 
+## Impact of weekday vs weekend in exercise activity
+
+Now we look at the difference in stepcount based on weekend vs during the week. 
+```{r weekdays, echo = TRUE}
+df_backfill = df_backfill %>%
+      mutate(Weekday = weekdays(date)) %>%
+      mutate(DayType = ifelse(Weekday %in% c('Monday','Tuesday','Wednesday','Thursday','Friday'),
+                              'Weekday','Weekend')) 
+df_dayofweek <- df_backfill %>%
+      select(DayType,interval,Imputed_5min_Stepcount) %>%
+      group_by(DayType,interval) %>%
+      summarise(AvgSteps = mean(Imputed_5min_Stepcount))
+df_weekdays <- df_dayofweek %>%
+      filter(DayType == 'Weekday')
+df_weekends <- df_dayofweek %>%
+      filter(DayType == 'Weekend')
+
+```
+
+Here's how the data would plot, contrasting weekdays from weekends. 
+
+```{r panel_plot, echo = FALSE}
+par(mfrow = c(2,1))
+plot(type = "l",
+     x = df_weekdays$interval, y = df_weekdays$AvgSteps,
+     main = 'Weekday activity by time interval',
+     xlab = 'Time of Day', ylab = 'Average Total Step Count',
+     sub = '(5-minute intervals)',col = 'lightblue3',
+     ylim = c(0,200)
+     )
+plot(type = "l",
+     x = df_weekends$interval, y = df_weekends$AvgSteps,
+     main = 'Weekend activity by time interval',
+     xlab = 'Time of Day', ylab = 'Average Total Step Count',
+     sub = '(5-minute intervals)',col = 'lightblue3',
+     ylim = c(0,200))
+```
+
+So it appears that more people get started earlier in the morning during the week (makes sense), but generally there is a higher and more even distribution of activity throughout the day, with more people being active past 8PM on weekends than during the week. It's also noteworthy that the maximum stepcount is on the weekdays. It appears that people are more intense about their exercise on weekday mornings (if they do exercise), but overall tend to get more steps on the weekend albeit in a less intensive way. Seems to make sense to me.
 
 
